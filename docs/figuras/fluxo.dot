@@ -1,0 +1,25 @@
+digraph FLOW {
+  graph [rankdir=TB, bgcolor="white", margin=0.2, nodesep=0.45, ranksep=0.45];
+  node [fontname="Arial", fontsize=10, color="#2F6F8F", style="rounded,filled", fillcolor="#F4F8FA"];
+  edge [fontname="Arial", fontsize=9, color="#44555F"];
+
+  inicio [shape=ellipse, label="Início do empréstimo", fillcolor="#E9F2F6"];
+  sel [shape=box, label="Selecionar usuário e livro"];
+  existe [shape=diamond, label="Livro e usuário\nexistem?"];
+  disp [shape=diamond, label="Há cópias\ndisponíveis?"];
+  dup [shape=diamond, label="Usuário já possui\nesse livro ativo?"];
+  erro1 [shape=box, label="Exibir mensagem\nde erro", fillcolor="#FBECEC", color="#A54B4B"];
+  atualiza [shape=box, label="Reduzir cópias disponíveis"];
+  cria [shape=box, label="Registrar empréstimo\nstatus = EMPRESTADO"];
+  commit [shape=box, label="Confirmar transação"];
+  fim [shape=ellipse, label="Empréstimo concluído", fillcolor="#E5F4EC", color="#3F7A5B"];
+
+  inicio -> sel -> existe;
+  existe -> erro1 [label="não"];
+  existe -> disp [label="sim"];
+  disp -> erro1 [label="não"];
+  disp -> dup [label="sim"];
+  dup -> erro1 [label="sim"];
+  dup -> atualiza [label="não"];
+  atualiza -> cria -> commit -> fim;
+}

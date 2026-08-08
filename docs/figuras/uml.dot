@@ -1,0 +1,18 @@
+digraph UML {
+  graph [rankdir=TB, bgcolor="white", margin=0.2, nodesep=0.8, ranksep=0.7];
+  node [shape=record, fontname="Arial", fontsize=10, style="rounded,filled", fillcolor="#F4F8FA", color="#2F6F8F"];
+  edge [fontname="Arial", fontsize=9, color="#44555F"];
+
+  Livro [label="{Livro|+ id: int\l+ titulo: str\l+ autor: str\l+ ano_publicacao: int\l+ copias_total: int\l+ copias_disponiveis: int\l|+ disponivel: bool\l}"];
+  Usuario [label="{Usuario|+ id: int\l+ nome: str\l+ identificacao: str\l+ contato: str\l|}"];
+  Emprestimo [label="{Emprestimo|+ id: int\l+ livro_id: int\l+ usuario_id: int\l+ data_emprestimo: datetime\l+ data_devolucao: datetime?\l+ status: str\l|+ ativo: bool\l}"];
+  Database [label="{Database|- url: str\l- engine\l- _Session\l|+ criar_tabelas()\l+ sessao()\l}"];
+  Service [label="{BibliotecaService|- db: Database\l|+ cadastrar_livro()\l+ listar_livros()\l+ buscar_livros()\l+ cadastrar_usuario()\l+ listar_usuarios()\l+ emprestar_livro()\l+ devolver_livro()\l+ listar_emprestimos()\l+ resumo()\l}"];
+
+  Usuario -> Emprestimo [label="1   *"];
+  Livro -> Emprestimo [label="1   *"];
+  Service -> Database [label="usa"];
+  Service -> Livro [label="gerencia", style=dashed];
+  Service -> Usuario [label="gerencia", style=dashed];
+  Service -> Emprestimo [label="gerencia", style=dashed];
+}

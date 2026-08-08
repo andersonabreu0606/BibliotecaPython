@@ -1,33 +1,120 @@
-O sistema atende aos requisitos exigidos no documento: Python, POO, cadastro de livros e usuários, empréstimo e devolução com atualização das cópias, consultas, relatórios, tratamento de exceções, menu de console, modularização, boas práticas e testes.
+# Sistema de Gerenciamento de Biblioteca
 
-A arquitetura ficou dividida em models.py, database.py, services.py, console.py e app.py. Há uma versão em console, atendendo literalmente ao enunciado, e uma versão web em Streamlit, usando exatamente a mesma camada de regras de negócio.
+Projeto acadêmico em Python desenvolvido para atender aos requisitos de:
 
-Também incluí o modelo PostgreSQL, documentação de deploy, exemplo seguro de Secrets, configuração de testes no GitHub Actions, diagramas DER/UML, representações da interface e um script para gerar o QR Code depois que tivermos a URL pública.
+- cadastro de livros;
+- cadastro de usuários;
+- empréstimo com verificação de disponibilidade;
+- devolução com atualização das cópias;
+- pesquisa por título, autor e ano;
+- relatórios;
+- programação orientada a objetos;
+- tratamento de erros e exceções;
+- interface de console;
+- interface web opcional;
+- modularização;
+- testes automatizados.
 
-6 testes executados — 6 aprovados.
+## Estrutura
 
-Foram testados cadastro e consulta, identificação única de usuário, atualização de cópias no empréstimo, bloqueio quando não há disponibilidade, devolução e impedimento de devolução duplicada.
+- `models.py` — classes Livro, Usuario e Emprestimo.
+- `database.py` — configuração do banco.
+- `services.py` — regras de negócio.
+- `console.py` — menu de console solicitado no enunciado.
+- `app.py` — interface web em Streamlit.
+- `seed.py` — dados de demonstração.
+- `tests/` — testes automatizados.
 
-Publicação gratuita
+## Execução local
 
-Mantive como arquitetura recomendada:
+### 1. Criar ambiente virtual
 
-GitHub → Streamlit Community Cloud → Neon PostgreSQL
+Windows:
 
-O Streamlit Community Cloud continua permitindo publicação gratuita diretamente de um repositório GitHub, escolhendo repositório, branch e app.py como arquivo principal; ele também fornece uma URL no domínio streamlit.app.
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
 
-As credenciais do banco devem ser configuradas no Secrets do Streamlit, e não gravadas no GitHub. Essa é também a recomendação da documentação oficial.
+Linux/macOS:
 
-O Neon mantém um plano gratuito de PostgreSQL adequado a pequenos projetos e aplicações acadêmicas.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-O passo a passo completo já está dentro do arquivo DEPLOY.md. Em resumo:
+### 2. Instalar dependências
 
-Criar no GitHub um repositório, por exemplo sistema-biblioteca, e enviar os arquivos do ZIP; criar um projeto PostgreSQL gratuito no Neon e copiar a DATABASE_URL; no Streamlit Community Cloud, criar uma aplicação usando app.py e colocar a DATABASE_URL em Advanced settings → Secrets; fazer o deploy, testar cadastro/empréstimo/devolução e copiar a URL final; então executar python gerar_qr.py https://seu-endereco.streamlit.app.
+```bash
+pip install -r requirements.txt
+```
 
-A documentação oficial confirma que o Community Cloud se conecta ao GitHub e acompanha as alterações feitas no repositório.
+### 3. Inserir dados de exemplo (opcional)
 
-Única parte que não consigo finalizar sem a sua autenticação
+```bash
+python seed.py
+```
 
-necessário criar o repositório GitHub, o banco Neon ou publicar dentro da sua conta Streamlit ( login/autorização dessas contas ). 
+### 4. Executar a versão de console
 
-Assim que você fizer o deploy e me enviar somente a URL pública do sistema, eu consigo fazer a última etapa: gerar o QR Code verdadeiro, inserir a URL e o QR Code no trabalho Word e devolver a versão definitiva pronta para postar no AVA.
+```bash
+python console.py
+```
+
+### 5. Executar a versão web
+
+```bash
+streamlit run app.py
+```
+
+## Banco de dados
+
+Por padrão, o projeto usa SQLite (`biblioteca.db`).
+
+Para publicar na internet com banco PostgreSQL, defina a variável:
+
+```text
+DATABASE_URL=postgresql://usuario:senha@servidor/banco?sslmode=require
+```
+
+No Streamlit Community Cloud, coloque a variável em **App > Settings > Secrets**:
+
+```toml
+DATABASE_URL = "postgresql://usuario:senha@servidor/banco?sslmode=require"
+```
+
+## Testes
+
+```bash
+pytest -q
+```
+
+## Sugestão de hospedagem
+
+Uma combinação simples para projeto acadêmico é:
+
+- aplicação: Streamlit Community Cloud;
+- banco persistente: Neon PostgreSQL.
+
+O código pode ficar em um repositório GitHub e o Streamlit faz o deploy diretamente dele.
+
+## Arquivos adicionais da entrega final
+
+- `schema_postgresql.sql` — modelo SQL relacional para PostgreSQL;
+- `DEPLOY.md` — roteiro completo de publicação;
+- `gerar_qr.py` — gera o QR Code após a definição da URL pública;
+- `.streamlit/secrets.toml.example` — exemplo seguro de configuração;
+- `.github/workflows/tests.yml` — execução automática dos testes no GitHub;
+- `docs/figuras/` — diagramas e representações utilizadas no relatório acadêmico.
+
+## Resultado dos testes da versão entregue
+
+A suíte automatizada possui 6 testes. Na versão preparada para entrega:
+
+```text
+6 passed
+```
+
+## Observação sobre a publicação
+
+O projeto está pronto para deploy, mas a criação do repositório, do banco e do aplicativo em nuvem exige autenticação nas contas do titular. O arquivo `DEPLOY.md` contém o passo a passo e os parâmetros necessários.

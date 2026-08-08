@@ -1,0 +1,26 @@
+digraph ARQ {
+  graph [rankdir=TB, bgcolor="white", margin=0.2, nodesep=0.6, ranksep=0.55];
+  node [shape=box, style="rounded,filled", fontname="Arial", fontsize=11, color="#2F6F8F", fillcolor="#F4F8FA", margin="0.18,0.12"];
+  edge [fontname="Arial", fontsize=9, color="#44555F"];
+
+  user [label="Usuário / Bibliotecário", fillcolor="#E9F2F6"];
+  web [label="Interface Web\nStreamlit (app.py)"];
+  console [label="Interface Console\n(console.py)"];
+  service [label="Camada de Regras de Negócio\nBibliotecaService (services.py)", fillcolor="#E5F4EC", color="#3F7A5B"];
+  orm [label="Camada de Persistência\nSQLAlchemy ORM + Database", fillcolor="#F5F0E6", color="#8A6A2F"];
+  sqlite [label="SQLite\nDesenvolvimento local"];
+  postgres [label="PostgreSQL / Neon\nPublicação na internet"];
+  github [label="GitHub\nCódigo-fonte e versionamento"];
+  cloud [label="Streamlit Community Cloud\nHospedagem gratuita"];
+
+  user -> web;
+  user -> console;
+  web -> service;
+  console -> service;
+  service -> orm;
+  orm -> sqlite [label="local"];
+  orm -> postgres [label="produção"];
+  github -> cloud [label="deploy"];
+  cloud -> web [style=dashed, label="executa"];
+  web -> postgres [style=dashed, label="DATABASE_URL"];
+}

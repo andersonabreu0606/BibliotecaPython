@@ -1,0 +1,41 @@
+digraph ERD {
+  graph [rankdir=LR, bgcolor="white", margin=0.2, nodesep=0.8, ranksep=1.0];
+  node [shape=plain, fontname="Arial"];
+
+  livro [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6">
+      <TR><TD BGCOLOR="#2F6F8F"><FONT COLOR="white"><B>LIVRO</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> id</TD></TR>
+      <TR><TD ALIGN="LEFT">titulo</TD></TR>
+      <TR><TD ALIGN="LEFT">autor</TD></TR>
+      <TR><TD ALIGN="LEFT">ano_publicacao</TD></TR>
+      <TR><TD ALIGN="LEFT">copias_total</TD></TR>
+      <TR><TD ALIGN="LEFT">copias_disponiveis</TD></TR>
+    </TABLE>
+  >];
+
+  usuario [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6">
+      <TR><TD BGCOLOR="#2F6F8F"><FONT COLOR="white"><B>USUARIO</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> id</TD></TR>
+      <TR><TD ALIGN="LEFT">nome</TD></TR>
+      <TR><TD ALIGN="LEFT">identificacao (UNIQUE)</TD></TR>
+      <TR><TD ALIGN="LEFT">contato</TD></TR>
+    </TABLE>
+  >];
+
+  emprestimo [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6">
+      <TR><TD BGCOLOR="#2F6F8F"><FONT COLOR="white"><B>EMPRESTIMO</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B> id</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> livro_id</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B> usuario_id</TD></TR>
+      <TR><TD ALIGN="LEFT">data_emprestimo</TD></TR>
+      <TR><TD ALIGN="LEFT">data_devolucao</TD></TR>
+      <TR><TD ALIGN="LEFT">status</TD></TR>
+    </TABLE>
+  >];
+
+  livro -> emprestimo [label="1 : N", dir=both, arrowtail=none, arrowhead=normal, fontname="Arial"];
+  usuario -> emprestimo [label="1 : N", dir=both, arrowtail=none, arrowhead=normal, fontname="Arial"];
+}
