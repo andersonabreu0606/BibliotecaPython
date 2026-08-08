@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from database import Database
 from models import Livro, Usuario, Emprestimo
@@ -58,6 +60,15 @@ class BibliotecaService:
             stmt = select(Livro).order_by(Livro.titulo)
             if somente_disponiveis:
                 stmt = stmt.where(Livro.copias_disponiveis > 0)
+            return list(s.scalars(stmt).all())
+
+    def listar_livros_indisponiveis(self) -> list[Livro]:
+        with self.db.sessao() as s:
+            stmt = (
+                select(Livro)
+                .where(Livro.copias_disponiveis == 0)
+                .order_by(Livro.titulo)
+            )
             return list(s.scalars(stmt).all())
 
     def buscar_livros(
@@ -132,7 +143,6 @@ class BibliotecaService:
                 if livro.copias_disponiveis <= 0:
                     raise BibliotecaErro("Não há cópias disponíveis deste livro.")
 
-                # Evita empréstimo duplicado do mesmo título ao mesmo utilizador.
                 duplicado = s.scalar(
                     select(Emprestimo).where(
                         Emprestimo.livro_id == livro_id,
@@ -182,7 +192,6 @@ class BibliotecaService:
                 emprestimo.data_devolucao = datetime.now(timezone.utc).replace(tzinfo=None)
                 livro.copias_disponiveis += 1
 
-                # Proteção contra inconsistência.
                 if livro.copias_disponiveis > livro.copias_total:
                     raise BibliotecaErro(
                         "Inconsistência de estoque detectada. A devolução foi cancelada."
@@ -201,25 +210,32 @@ class BibliotecaService:
 
     def listar_emprestimos(self, somente_ativos: bool = False) -> list[Emprestimo]:
         with self.db.sessao() as s:
-            stmt = select(Emprestimo).order_by(Emprestimo.data_emprestimo.desc())
+            stmt = (
+                select(Emprestimo)
+                .options(selectinload(Emprestimo.livro), selectinload(Emprestimo.usuario))
+                .order_by(Emprestimo.data_emprestimo.desc())
+            )
             if somente_ativos:
                 stmt = stmt.where(
                     Emprestimo.status == "EMPRESTADO",
                     Emprestimo.data_devolucao.is_(None),
                 )
-            emprestimos = list(s.scalars(stmt).all())
+            return list(s.scalars(stmt).all())
 
-            # Carrega as relações enquanto a sessão está aberta.
-            for e in emprestimos:
-                _ = e.livro.titulo
-                _ = e.usuario.nome
-
-            return emprestimos
+    def emprestimos_recentes(self, limite: int = 8) -> list[Emprestimo]:
+        with self.db.sessao() as s:
+            stmt = (
+                select(Emprestimo)
+                .options(selectinload(Emprestimo.livro), selectinload(Emprestimo.usuario))
+                .order_by(Emprestimo.data_emprestimo.desc())
+                .limit(limite)
+            )
+            return list(s.scalars(stmt).all())
 
     # ----------------------------
-    # Relatórios
+    # Dashboard e relatórios
     # ----------------------------
-    def resumo(self) -> dict[str, int]:
+    def resumo(self) -> dict[str, int | float]:
         with self.db.sessao() as s:
             total_livros = s.scalar(select(func.count(Livro.id))) or 0
             total_usuarios = s.scalar(select(func.count(Usuario.id))) or 0
@@ -229,13 +245,79 @@ class BibliotecaService:
                     Emprestimo.data_devolucao.is_(None),
                 )
             ) or 0
+            emprestimos_devolvidos = s.scalar(
+                select(func.count(Emprestimo.id)).where(Emprestimo.status == "DEVOLVIDO")
+            ) or 0
             copias_disponiveis = s.scalar(
                 select(func.coalesce(func.sum(Livro.copias_disponiveis), 0))
             ) or 0
+            copias_total = s.scalar(
+                select(func.coalesce(func.sum(Livro.copias_total), 0))
+            ) or 0
+            titulos_indisponiveis = s.scalar(
+                select(func.count(Livro.id)).where(Livro.copias_disponiveis == 0)
+            ) or 0
+
+            taxa_ocupacao = 0.0
+            if copias_total:
+                taxa_ocupacao = ((copias_total - copias_disponiveis) / copias_total) * 100
 
             return {
                 "livros_catalogados": int(total_livros),
                 "usuarios_cadastrados": int(total_usuarios),
                 "emprestimos_ativos": int(emprestimos_ativos),
+                "emprestimos_devolvidos": int(emprestimos_devolvidos),
                 "copias_disponiveis": int(copias_disponiveis),
+                "copias_total": int(copias_total),
+                "titulos_indisponiveis": int(titulos_indisponiveis),
+                "taxa_ocupacao": round(taxa_ocupacao, 1),
             }
+
+    def emprestimos_por_status(self) -> list[dict[str, int | str]]:
+        with self.db.sessao() as s:
+            stmt = (
+                select(Emprestimo.status, func.count(Emprestimo.id))
+                .group_by(Emprestimo.status)
+                .order_by(Emprestimo.status)
+            )
+            return [
+                {"status": status, "quantidade": int(qtd)}
+                for status, qtd in s.execute(stmt).all()
+            ]
+
+    def top_livros(self, limite: int = 10) -> list[dict[str, int | str]]:
+        with self.db.sessao() as s:
+            stmt = (
+                select(Livro.titulo, func.count(Emprestimo.id).label("quantidade"))
+                .join(Emprestimo, Emprestimo.livro_id == Livro.id)
+                .group_by(Livro.id, Livro.titulo)
+                .order_by(func.count(Emprestimo.id).desc(), Livro.titulo)
+                .limit(limite)
+            )
+            return [
+                {"livro": titulo, "emprestimos": int(qtd)}
+                for titulo, qtd in s.execute(stmt).all()
+            ]
+
+    def top_autores(self, limite: int = 8) -> list[dict[str, int | str]]:
+        with self.db.sessao() as s:
+            stmt = (
+                select(Livro.autor, func.count(Emprestimo.id).label("quantidade"))
+                .join(Emprestimo, Emprestimo.livro_id == Livro.id)
+                .group_by(Livro.autor)
+                .order_by(func.count(Emprestimo.id).desc(), Livro.autor)
+                .limit(limite)
+            )
+            return [
+                {"autor": autor, "emprestimos": int(qtd)}
+                for autor, qtd in s.execute(stmt).all()
+            ]
+
+    def emprestimos_por_mes(self, meses: int = 12) -> list[dict[str, int | str]]:
+        """Agrupa em Python para manter compatibilidade entre SQLite e PostgreSQL."""
+        with self.db.sessao() as s:
+            datas = list(s.scalars(select(Emprestimo.data_emprestimo)).all())
+
+        contador: Counter[str] = Counter(d.strftime("%Y-%m") for d in datas)
+        chaves = sorted(contador.keys())[-meses:]
+        return [{"mes": chave, "emprestimos": contador[chave]} for chave in chaves]

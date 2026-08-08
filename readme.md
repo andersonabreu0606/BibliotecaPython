@@ -98,23 +98,17 @@ Uma combinação simples para projeto acadêmico é:
 
 O código pode ficar em um repositório GitHub e o Streamlit faz o deploy diretamente dele.
 
-## Arquivos adicionais da entrega final
+## Versão visual 2.0
 
-- `schema_postgresql.sql` — modelo SQL relacional para PostgreSQL;
-- `DEPLOY.md` — roteiro completo de publicação;
-- `gerar_qr.py` — gera o QR Code após a definição da URL pública;
-- `.streamlit/secrets.toml.example` — exemplo seguro de configuração;
-- `.github/workflows/tests.yml` — execução automática dos testes no GitHub;
-- `docs/figuras/` — diagramas e representações utilizadas no relatório acadêmico.
+A versão 2.0 inclui um dashboard gerencial com:
 
-## Resultado dos testes da versão entregue
+- cartões de indicadores (títulos, usuários, empréstimos, cópias e ocupação);
+- gráfico de situação dos empréstimos;
+- ranking dos livros mais procurados;
+- evolução mensal dos empréstimos;
+- alertas de indisponibilidade;
+- atividade recente;
+- ranking de autores nos relatórios;
+- tema visual responsivo e formulários reorganizados.
 
-A suíte automatizada possui 6 testes. Na versão preparada para entrega:
-
-```text
-6 passed
-```
-
-## Observação sobre a publicação
-
-O projeto está pronto para deploy, mas a criação do repositório, do banco e do aplicativo em nuvem exige autenticação nas contas do titular. O arquivo `DEPLOY.md` contém o passo a passo e os parâmetros necessários.
+Os diagramas finais estão na pasta `documentacao/` nos formatos PNG, SVG e fonte editável.

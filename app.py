@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
+
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 from sqlalchemy.exc import OperationalError
 
@@ -13,11 +16,157 @@ st.set_page_config(
     page_title="Biblioteca Digital",
     page_icon="📚",
     layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+# -----------------------------------------------------------------------------
+# Identidade visual
+# -----------------------------------------------------------------------------
+st.markdown(
+    """
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-soft: #eef2ff;
+            --ink: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+        }
+
+        .block-container {
+            padding-top: 1.8rem;
+            padding-bottom: 3rem;
+            max-width: 1500px;
+        }
+
+        [data-testid="stSidebar"] {
+            border-right: 1px solid var(--border);
+        }
+
+        .brand-box {
+            padding: 1rem 0.25rem 1.4rem 0.25rem;
+        }
+
+        .brand-title {
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--ink);
+        }
+
+        .brand-subtitle {
+            margin-top: 0.35rem;
+            color: var(--muted);
+            font-size: 0.82rem;
+        }
+
+        .hero {
+            border-radius: 22px;
+            padding: 1.65rem 1.8rem;
+            margin-bottom: 1.35rem;
+            background: linear-gradient(120deg, #312e81 0%, #4f46e5 55%, #7c3aed 100%);
+            color: white;
+            box-shadow: 0 12px 30px rgba(79, 70, 229, 0.18);
+        }
+
+        .hero h1 {
+            color: white;
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .hero p {
+            color: rgba(255,255,255,.84);
+            margin: .55rem 0 0 0;
+            max-width: 860px;
+        }
+
+        .kpi-card {
+            background: var(--primary-soft);
+            border: 1px solid #dfe3ff;
+            border-radius: 18px;
+            padding: 1.15rem 1.2rem;
+            min-height: 125px;
+            box-shadow: 0 5px 14px rgba(17,24,39,.05);
+        }
+
+        .kpi-label {
+            color: var(--muted);
+            font-size: .78rem;
+            text-transform: uppercase;
+            letter-spacing: .055em;
+            font-weight: 700;
+        }
+
+        .kpi-value {
+            margin-top: .3rem;
+            color: var(--ink);
+            font-size: 2rem;
+            line-height: 1.1;
+            font-weight: 800;
+        }
+
+        .kpi-note {
+            margin-top: .35rem;
+            color: var(--muted);
+            font-size: .82rem;
+        }
+
+        .section-title {
+            margin-top: .25rem;
+            margin-bottom: .2rem;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--ink);
+        }
+
+        .section-subtitle {
+            color: var(--muted);
+            font-size: .9rem;
+            margin-bottom: .8rem;
+        }
+
+        div[data-testid="stForm"] {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.1rem 1.2rem 1.25rem 1.2rem;
+            background: rgba(255,255,255,.65);
+        }
+
+        div[data-testid="stDataFrame"] {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .status-chip {
+            display: inline-block;
+            padding: .2rem .55rem;
+            border-radius: 999px;
+            font-size: .75rem;
+            font-weight: 700;
+        }
+
+        .status-ok { background: #d1fae5; color: #065f46; }
+        .status-warn { background: #fef3c7; color: #92400e; }
+
+        .footer-note {
+            margin-top: 2rem;
+            color: var(--muted);
+            font-size: .78rem;
+            text-align: center;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 
 def obter_database_url():
-    """Obtém DATABASE_URL dos Secrets do Streamlit ou do ambiente."""
     try:
         if "DATABASE_URL" in st.secrets:
             return str(st.secrets["DATABASE_URL"]).strip()
@@ -52,6 +201,7 @@ def livros_df(livros):
             "Ano": l.ano_publicacao,
             "Cópias totais": l.copias_total,
             "Disponíveis": l.copias_disponiveis,
+            "Situação": "Disponível" if l.copias_disponiveis > 0 else "Indisponível",
         }
         for l in livros
     ])
@@ -72,114 +222,279 @@ def usuarios_df(usuarios):
 def emprestimos_df(emprestimos):
     return pd.DataFrame([
         {
-            "ID empréstimo": e.id,
+            "ID": e.id,
             "Livro": e.livro.titulo,
             "Usuário": e.usuario.nome,
-            "Data empréstimo": e.data_emprestimo.strftime("%d/%m/%Y %H:%M"),
-            "Data devolução": (
+            "Data do empréstimo": e.data_emprestimo.strftime("%d/%m/%Y %H:%M"),
+            "Data da devolução": (
                 e.data_devolucao.strftime("%d/%m/%Y %H:%M")
-                if e.data_devolucao else ""
+                if e.data_devolucao else "—"
             ),
-            "Status": e.status,
+            "Status": e.status.title(),
         }
         for e in emprestimos
     ])
 
 
-st.title("📚 Sistema de Gerenciamento de Biblioteca")
-st.caption(
-    "Projeto acadêmico em Python com POO, persistência de dados, tratamento de erros, "
-    "empréstimos, devoluções, consultas e relatórios."
-)
-
-menu = st.sidebar.radio(
-    "Menu",
-    [
-        "Início",
-        "Cadastrar livro",
-        "Cadastrar usuário",
-        "Empréstimo",
-        "Devolução",
-        "Consultar livros",
-        "Relatórios",
-    ],
-)
+def render_hero(titulo: str, texto: str, icone: str = "📚"):
+    st.markdown(
+        f"""
+        <div class="hero">
+            <h1>{icone} {titulo}</h1>
+            <p>{texto}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
-if menu == "Início":
+def render_kpi(label: str, valor: str | int, nota: str):
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{valor}</div>
+            <div class="kpi-note">{nota}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def titulo_secao(titulo: str, subtitulo: str = ""):
+    st.markdown(f'<div class="section-title">{titulo}</div>', unsafe_allow_html=True)
+    if subtitulo:
+        st.markdown(f'<div class="section-subtitle">{subtitulo}</div>', unsafe_allow_html=True)
+
+
+# -----------------------------------------------------------------------------
+# Sidebar
+# -----------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown(
+        """
+        <div class="brand-box">
+            <div class="brand-title">📚 Biblioteca Digital</div>
+            <div class="brand-subtitle">Gestão inteligente do acervo e dos empréstimos</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    menu = st.radio(
+        "Navegação",
+        [
+            "🏠 Dashboard",
+            "📘 Cadastrar livro",
+            "👤 Cadastrar usuário",
+            "🔄 Empréstimo",
+            "↩️ Devolução",
+            "🔎 Consultar livros",
+            "📊 Relatórios",
+        ],
+        label_visibility="collapsed",
+    )
+
+    st.divider()
+    resumo_sidebar = service.resumo()
+    st.caption("Situação do acervo")
+    st.progress(
+        min(float(resumo_sidebar["taxa_ocupacao"]) / 100, 1.0),
+        text=f'{resumo_sidebar["taxa_ocupacao"]:.1f}% das cópias emprestadas',
+    )
+    st.caption(f'Atualizado em {datetime.now().strftime("%d/%m/%Y %H:%M")}')
+
+
+# -----------------------------------------------------------------------------
+# Dashboard
+# -----------------------------------------------------------------------------
+if menu == "🏠 Dashboard":
+    render_hero(
+        "Painel da Biblioteca",
+        "Uma visão consolidada do acervo, circulação de livros, utilizadores e atividade recente.",
+        "📚",
+    )
+
     resumo = service.resumo()
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Livros catalogados", resumo["livros_catalogados"])
-    c2.metric("Usuários cadastrados", resumo["usuarios_cadastrados"])
-    c3.metric("Empréstimos ativos", resumo["emprestimos_ativos"])
-    c4.metric("Cópias disponíveis", resumo["copias_disponiveis"])
+    cols = st.columns(5)
+    with cols[0]:
+        render_kpi("Títulos catalogados", resumo["livros_catalogados"], "Obras registadas no catálogo")
+    with cols[1]:
+        render_kpi("Utilizadores", resumo["usuarios_cadastrados"], "Leitores cadastrados")
+    with cols[2]:
+        render_kpi("Empréstimos ativos", resumo["emprestimos_ativos"], "Livros atualmente em circulação")
+    with cols[3]:
+        render_kpi("Cópias disponíveis", resumo["copias_disponiveis"], f'De {resumo["copias_total"]} cópias no acervo')
+    with cols[4]:
+        render_kpi("Ocupação", f'{resumo["taxa_ocupacao"]:.1f}%', "Percentual de cópias emprestadas")
 
-    st.subheader("Livros disponíveis")
-    df = livros_df(service.listar_livros(somente_disponiveis=True))
-    if df.empty:
-        st.info("Nenhum livro disponível no momento.")
-    else:
-        st.dataframe(df, use_container_width=True, hide_index=True)
+    st.write("")
+    left, right = st.columns([1.05, 1.95], gap="large")
 
-
-elif menu == "Cadastrar livro":
-    st.header("Cadastro de livros")
-
-    with st.form("form_livro", clear_on_submit=True):
-        titulo = st.text_input("Título")
-        autor = st.text_input("Autor")
-        ano = st.number_input(
-            "Ano de publicação",
-            min_value=0,
-            max_value=2100,
-            value=2020,
-            step=1,
-        )
-        copias = st.number_input(
-            "Número de cópias",
-            min_value=1,
-            max_value=10000,
-            value=1,
-            step=1,
-        )
-        enviado = st.form_submit_button("Cadastrar")
-
-    if enviado:
-        try:
-            livro = service.cadastrar_livro(
-                titulo=titulo,
-                autor=autor,
-                ano_publicacao=int(ano),
-                copias=int(copias),
+    with left:
+        titulo_secao("Situação dos empréstimos", "Comparativo entre empréstimos em aberto e já devolvidos.")
+        dados_status = pd.DataFrame(service.emprestimos_por_status())
+        if dados_status.empty:
+            st.info("Ainda não existem empréstimos registrados.")
+        else:
+            fig = px.pie(
+                dados_status,
+                names="status",
+                values="quantidade",
+                hole=.58,
             )
-            st.success(f'Livro "{livro.titulo}" cadastrado com sucesso.')
-        except BibliotecaErro as exc:
-            st.error(str(exc))
-        except Exception as exc:
-            st.error(f"Erro inesperado: {exc}")
+            fig.update_traces(textposition="inside", textinfo="percent+label")
+            fig.update_layout(
+                margin=dict(l=10, r=10, t=20, b=10),
+                height=350,
+                legend_title_text="",
+                showlegend=False,
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    with right:
+        titulo_secao("Livros mais procurados", "Ranking dos títulos com maior número de empréstimos registrados.")
+        top = pd.DataFrame(service.top_livros(10))
+        if top.empty:
+            st.info("Ainda não existem dados suficientes para o ranking.")
+        else:
+            top = top.sort_values("emprestimos", ascending=True)
+            fig = px.bar(
+                top,
+                x="emprestimos",
+                y="livro",
+                orientation="h",
+                labels={"emprestimos": "Empréstimos", "livro": "Título"},
+            )
+            fig.update_layout(
+                margin=dict(l=10, r=10, t=20, b=10),
+                height=350,
+                yaxis_title="",
+                xaxis_title="Quantidade de empréstimos",
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    left2, right2 = st.columns([1.5, 1], gap="large")
+
+    with left2:
+        titulo_secao("Evolução mensal", "Quantidade de empréstimos realizados nos últimos períodos disponíveis.")
+        mensal = pd.DataFrame(service.emprestimos_por_mes(12))
+        if mensal.empty:
+            st.info("Sem histórico temporal para apresentar.")
+        else:
+            mensal["Período"] = pd.to_datetime(mensal["mes"] + "-01").dt.strftime("%m/%Y")
+            fig = px.line(
+                mensal,
+                x="Período",
+                y="emprestimos",
+                markers=True,
+                labels={"emprestimos": "Empréstimos"},
+            )
+            fig.update_layout(
+                margin=dict(l=10, r=10, t=20, b=10),
+                height=330,
+                xaxis_title="",
+                yaxis_title="Empréstimos",
+            )
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    with right2:
+        titulo_secao("Indicadores operacionais", "Alertas rápidos para apoiar o acompanhamento do acervo.")
+        indisponiveis = int(resumo["titulos_indisponiveis"])
+        if indisponiveis:
+            st.warning(f"⚠️ {indisponiveis} título(s) sem nenhuma cópia disponível.")
+        else:
+            st.success("✅ Todos os títulos possuem ao menos uma cópia disponível.")
+
+        st.metric("Empréstimos devolvidos", resumo["emprestimos_devolvidos"])
+        st.metric("Total de cópias", resumo["copias_total"])
+        st.metric("Cópias em circulação", int(resumo["copias_total"]) - int(resumo["copias_disponiveis"]))
+
+    titulo_secao("Atividade recente", "Últimos movimentos registrados no sistema.")
+    recentes = emprestimos_df(service.emprestimos_recentes(8))
+    if recentes.empty:
+        st.info("Ainda não existem movimentos registrados.")
+    else:
+        st.dataframe(
+            recentes,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn("#", width="small"),
+                "Status": st.column_config.TextColumn("Status", width="small"),
+            },
+        )
 
 
-elif menu == "Cadastrar usuário":
-    st.header("Cadastro de usuários")
+elif menu == "📘 Cadastrar livro":
+    render_hero(
+        "Cadastro de livro",
+        "Inclua um novo título no acervo e defina a quantidade inicial de cópias disponíveis.",
+        "📘",
+    )
 
-    with st.form("form_usuario", clear_on_submit=True):
-        nome = st.text_input("Nome")
-        identificacao = st.text_input("Número de identificação")
-        contato = st.text_input("Contato")
-        enviado = st.form_submit_button("Cadastrar")
+    col_form, col_help = st.columns([1.5, 1], gap="large")
+    with col_form:
+        with st.form("form_livro", clear_on_submit=True):
+            titulo = st.text_input("Título", placeholder="Ex.: Engenharia de Dados com Python")
+            autor = st.text_input("Autor", placeholder="Ex.: Fernanda Lima")
+            c1, c2 = st.columns(2)
+            ano = c1.number_input("Ano de publicação", min_value=0, max_value=2100, value=2024, step=1)
+            copias = c2.number_input("Número de cópias", min_value=1, max_value=10000, value=1, step=1)
+            enviado = st.form_submit_button("➕ Cadastrar livro", use_container_width=True)
 
-    if enviado:
-        try:
-            usuario = service.cadastrar_usuario(nome, identificacao, contato)
-            st.success(f'Usuário "{usuario.nome}" cadastrado com sucesso.')
-        except BibliotecaErro as exc:
-            st.error(str(exc))
-        except Exception as exc:
-            st.error(f"Erro inesperado: {exc}")
+        if enviado:
+            try:
+                livro = service.cadastrar_livro(titulo, autor, int(ano), int(copias))
+                st.success(f'Livro “{livro.titulo}” cadastrado com sucesso.')
+            except BibliotecaErro as exc:
+                st.error(str(exc))
+            except Exception as exc:
+                st.error(f"Erro inesperado: {exc}")
+
+    with col_help:
+        titulo_secao("Boas práticas", "Informações úteis para manter o catálogo consistente.")
+        st.info("💡 Utilize o título completo da obra e o nome do autor conforme a ficha catalográfica.")
+        st.info("📦 O número de cópias representa o estoque físico inicial do título.")
+        st.info("🔎 O livro ficará imediatamente disponível nas consultas e operações de empréstimo.")
 
 
-elif menu == "Empréstimo":
-    st.header("Empréstimo de livros")
+elif menu == "👤 Cadastrar usuário":
+    render_hero(
+        "Cadastro de usuário",
+        "Registe leitores da biblioteca com uma identificação única e um canal de contato.",
+        "👤",
+    )
+
+    col_form, col_help = st.columns([1.5, 1], gap="large")
+    with col_form:
+        with st.form("form_usuario", clear_on_submit=True):
+            nome = st.text_input("Nome completo", placeholder="Ex.: Ana Oliveira")
+            identificacao = st.text_input("Número de identificação", placeholder="Ex.: USR00125")
+            contato = st.text_input("Contato", placeholder="Ex.: ana@email.com ou +351 9xx xxx xxx")
+            enviado = st.form_submit_button("👤 Cadastrar usuário", use_container_width=True)
+
+        if enviado:
+            try:
+                usuario = service.cadastrar_usuario(nome, identificacao, contato)
+                st.success(f'Usuário “{usuario.nome}” cadastrado com sucesso.')
+            except BibliotecaErro as exc:
+                st.error(str(exc))
+            except Exception as exc:
+                st.error(f"Erro inesperado: {exc}")
+
+    with col_help:
+        titulo_secao("Identificação do leitor")
+        st.info("🪪 A identificação é única e impede cadastros duplicados.")
+        st.info("📧 O contato pode ser um e-mail ou telefone utilizado pela biblioteca.")
+
+
+elif menu == "🔄 Empréstimo":
+    render_hero(
+        "Novo empréstimo",
+        "Selecione um título disponível e o usuário responsável pelo empréstimo.",
+        "🔄",
+    )
 
     livros = service.listar_livros(somente_disponiveis=True)
     usuarios = service.listar_usuarios()
@@ -190,48 +505,55 @@ elif menu == "Empréstimo":
         st.warning("Cadastre ao menos um usuário antes de realizar empréstimos.")
     else:
         livro_map = {
-            f"{l.id} — {l.titulo} ({l.copias_disponiveis} disponível/eis)": l.id
+            f"{l.titulo} — {l.autor} | {l.copias_disponiveis} disponível(eis)": l.id
             for l in livros
         }
         usuario_map = {
-            f"{u.id} — {u.nome} [{u.identificacao}]": u.id
+            f"{u.nome} — {u.identificacao}": u.id
             for u in usuarios
         }
 
-        with st.form("form_emprestimo"):
-            livro_sel = st.selectbox("Livro", list(livro_map))
-            usuario_sel = st.selectbox("Usuário", list(usuario_map))
-            enviado = st.form_submit_button("Confirmar empréstimo")
+        col_form, col_info = st.columns([1.55, 1], gap="large")
+        with col_form:
+            with st.form("form_emprestimo"):
+                livro_sel = st.selectbox("Livro", list(livro_map))
+                usuario_sel = st.selectbox("Usuário", list(usuario_map))
+                enviado = st.form_submit_button("✅ Confirmar empréstimo", use_container_width=True)
 
-        if enviado:
-            try:
-                emp = service.emprestar_livro(
-                    livro_map[livro_sel],
-                    usuario_map[usuario_sel],
-                )
-                st.success(f"Empréstimo #{emp.id} realizado com sucesso.")
-                st.rerun()
-            except BibliotecaErro as exc:
-                st.error(str(exc))
-            except Exception as exc:
-                st.error(f"Erro inesperado: {exc}")
+            if enviado:
+                try:
+                    emp = service.emprestar_livro(livro_map[livro_sel], usuario_map[usuario_sel])
+                    st.success(f"Empréstimo #{emp.id} realizado com sucesso.")
+                    st.rerun()
+                except BibliotecaErro as exc:
+                    st.error(str(exc))
+                except Exception as exc:
+                    st.error(f"Erro inesperado: {exc}")
+
+        with col_info:
+            st.metric("Títulos disponíveis", len(livros))
+            st.metric("Usuários cadastrados", len(usuarios))
+            st.info("O sistema reduz automaticamente a quantidade disponível do livro após a confirmação.")
 
 
-elif menu == "Devolução":
-    st.header("Devolução de livros")
+elif menu == "↩️ Devolução":
+    render_hero(
+        "Devolução de livro",
+        "Finalize um empréstimo ativo e devolva automaticamente a cópia ao estoque disponível.",
+        "↩️",
+    )
     ativos = service.listar_emprestimos(somente_ativos=True)
 
     if not ativos:
-        st.info("Não há empréstimos ativos.")
+        st.success("Não há empréstimos ativos no momento.")
     else:
         emp_map = {
             f"#{e.id} — {e.livro.titulo} — {e.usuario.nome}": e.id
             for e in ativos
         }
-
         with st.form("form_devolucao"):
-            emp_sel = st.selectbox("Empréstimo", list(emp_map))
-            enviado = st.form_submit_button("Confirmar devolução")
+            emp_sel = st.selectbox("Empréstimo ativo", list(emp_map))
+            enviado = st.form_submit_button("↩️ Confirmar devolução", use_container_width=True)
 
         if enviado:
             try:
@@ -243,13 +565,22 @@ elif menu == "Devolução":
             except Exception as exc:
                 st.error(f"Erro inesperado: {exc}")
 
+        titulo_secao("Empréstimos aguardando devolução")
+        st.dataframe(emprestimos_df(ativos), use_container_width=True, hide_index=True)
 
-elif menu == "Consultar livros":
-    st.header("Consulta de livros")
-    col1, col2, col3 = st.columns(3)
-    titulo = col1.text_input("Título contém")
-    autor = col2.text_input("Autor contém")
-    ano_txt = col3.text_input("Ano exato")
+
+elif menu == "🔎 Consultar livros":
+    render_hero(
+        "Consulta ao acervo",
+        "Pesquise títulos por nome, autor ou ano de publicação e veja a disponibilidade em tempo real.",
+        "🔎",
+    )
+
+    with st.container(border=True):
+        col1, col2, col3 = st.columns(3)
+        titulo = col1.text_input("Título contém", placeholder="Digite parte do título")
+        autor = col2.text_input("Autor contém", placeholder="Digite parte do nome")
+        ano_txt = col3.text_input("Ano exato", placeholder="Ex.: 2024")
 
     ano = None
     if ano_txt.strip():
@@ -258,31 +589,41 @@ elif menu == "Consultar livros":
         else:
             st.warning("O ano deve ser numérico.")
 
-    livros = service.buscar_livros(
-        titulo=titulo or None,
-        autor=autor or None,
-        ano=ano,
-    )
+    livros = service.buscar_livros(titulo=titulo or None, autor=autor or None, ano=ano)
     df = livros_df(livros)
 
+    titulo_secao(f"Resultado da pesquisa ({len(df)} título(s))")
     if df.empty:
         st.info("Nenhum livro encontrado.")
     else:
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(
+            df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn("#", width="small"),
+                "Ano": st.column_config.NumberColumn("Ano", format="%d"),
+                "Situação": st.column_config.TextColumn("Situação", width="small"),
+            },
+        )
 
 
-elif menu == "Relatórios":
-    st.header("Relatórios")
+elif menu == "📊 Relatórios":
+    render_hero(
+        "Relatórios gerenciais",
+        "Acompanhe o catálogo, usuários e histórico de circulação, com opção de exportação em CSV.",
+        "📊",
+    )
 
-    aba1, aba2, aba3, aba4 = st.tabs(
-        ["Livros disponíveis", "Livros emprestados", "Usuários", "Histórico"]
+    aba1, aba2, aba3, aba4, aba5 = st.tabs(
+        ["📚 Disponíveis", "🔄 Emprestados", "👥 Usuários", "🕓 Histórico", "✍️ Autores"]
     )
 
     with aba1:
         df = livros_df(service.listar_livros(somente_disponiveis=True))
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button(
-            "Baixar CSV",
+            "⬇️ Baixar CSV de livros disponíveis",
             df.to_csv(index=False).encode("utf-8-sig"),
             "livros_disponiveis.csv",
             "text/csv",
@@ -292,7 +633,7 @@ elif menu == "Relatórios":
         df = emprestimos_df(service.listar_emprestimos(somente_ativos=True))
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button(
-            "Baixar CSV",
+            "⬇️ Baixar CSV de empréstimos ativos",
             df.to_csv(index=False).encode("utf-8-sig"),
             "livros_emprestados.csv",
             "text/csv",
@@ -302,7 +643,7 @@ elif menu == "Relatórios":
         df = usuarios_df(service.listar_usuarios())
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button(
-            "Baixar CSV",
+            "⬇️ Baixar CSV de usuários",
             df.to_csv(index=False).encode("utf-8-sig"),
             "usuarios.csv",
             "text/csv",
@@ -312,8 +653,29 @@ elif menu == "Relatórios":
         df = emprestimos_df(service.listar_emprestimos(somente_ativos=False))
         st.dataframe(df, use_container_width=True, hide_index=True)
         st.download_button(
-            "Baixar CSV",
+            "⬇️ Baixar CSV do histórico",
             df.to_csv(index=False).encode("utf-8-sig"),
             "historico_emprestimos.csv",
             "text/csv",
         )
+
+    with aba5:
+        autores = pd.DataFrame(service.top_autores(12))
+        if autores.empty:
+            st.info("Ainda não existem empréstimos suficientes para gerar o ranking de autores.")
+        else:
+            fig = px.bar(
+                autores.sort_values("emprestimos"),
+                x="emprestimos",
+                y="autor",
+                orientation="h",
+                labels={"emprestimos": "Empréstimos", "autor": "Autor"},
+            )
+            fig.update_layout(height=430, yaxis_title="", xaxis_title="Quantidade de empréstimos")
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
+st.markdown(
+    '<div class="footer-note">Projeto Integrado • Sistema de Gerenciamento de Biblioteca • Python + Streamlit + SQLAlchemy</div>',
+    unsafe_allow_html=True,
+)

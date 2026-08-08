@@ -1,0 +1,54 @@
+digraph UML {
+  graph [rankdir=LR, bgcolor="white", pad="0.35", nodesep="0.55", ranksep="0.8", fontname="Arial", label="Diagrama UML de Classes — Biblioteca Digital", labelloc="t", fontsize=20];
+  node [shape=plain, fontname="Arial"];
+  edge [fontname="Arial", fontsize=10, color="#64748b", penwidth=1.4];
+
+  Livro [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#c7d2fe">
+      <TR><TD BGCOLOR="#4f46e5"><FONT COLOR="white"><B>Livro</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT">+ id: int<BR ALIGN="LEFT"/>+ titulo: str<BR ALIGN="LEFT"/>+ autor: str<BR ALIGN="LEFT"/>+ ano_publicacao: int<BR ALIGN="LEFT"/>+ copias_total: int<BR ALIGN="LEFT"/>+ copias_disponiveis: int</TD></TR>
+      <TR><TD ALIGN="LEFT">+ disponivel: bool<BR ALIGN="LEFT"/>+ __repr__(): str</TD></TR>
+    </TABLE>
+  >];
+
+  Usuario [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#bfdbfe">
+      <TR><TD BGCOLOR="#2563eb"><FONT COLOR="white"><B>Usuario</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT">+ id: int<BR ALIGN="LEFT"/>+ nome: str<BR ALIGN="LEFT"/>+ identificacao: str<BR ALIGN="LEFT"/>+ contato: str</TD></TR>
+      <TR><TD ALIGN="LEFT">+ __repr__(): str</TD></TR>
+    </TABLE>
+  >];
+
+  Emprestimo [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#ddd6fe">
+      <TR><TD BGCOLOR="#7c3aed"><FONT COLOR="white"><B>Emprestimo</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT">+ id: int<BR ALIGN="LEFT"/>+ livro_id: int<BR ALIGN="LEFT"/>+ usuario_id: int<BR ALIGN="LEFT"/>+ data_emprestimo: datetime<BR ALIGN="LEFT"/>+ data_devolucao: datetime?<BR ALIGN="LEFT"/>+ status: str</TD></TR>
+      <TR><TD ALIGN="LEFT">+ ativo: bool<BR ALIGN="LEFT"/>+ __repr__(): str</TD></TR>
+    </TABLE>
+  >];
+
+  Service [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#bbf7d0">
+      <TR><TD BGCOLOR="#059669"><FONT COLOR="white"><B>BibliotecaService</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT">- db: Database</TD></TR>
+      <TR><TD ALIGN="LEFT">+ cadastrar_livro(...): Livro<BR ALIGN="LEFT"/>+ cadastrar_usuario(...): Usuario<BR ALIGN="LEFT"/>+ emprestar_livro(...): Emprestimo<BR ALIGN="LEFT"/>+ devolver_livro(...): Emprestimo<BR ALIGN="LEFT"/>+ buscar_livros(...): list&lt;Livro&gt;<BR ALIGN="LEFT"/>+ resumo(): dict<BR ALIGN="LEFT"/>+ top_livros(): list&lt;dict&gt;<BR ALIGN="LEFT"/>+ top_autores(): list&lt;dict&gt;<BR ALIGN="LEFT"/>+ emprestimos_por_mes(): list&lt;dict&gt;</TD></TR>
+    </TABLE>
+  >];
+
+  Database [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" COLOR="#fed7aa">
+      <TR><TD BGCOLOR="#ea580c"><FONT COLOR="white"><B>Database</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT">- url: str<BR ALIGN="LEFT"/>- engine: Engine<BR ALIGN="LEFT"/>- _Session: sessionmaker</TD></TR>
+      <TR><TD ALIGN="LEFT">+ testar_conexao(): bool<BR ALIGN="LEFT"/>+ criar_tabelas(): void<BR ALIGN="LEFT"/>+ sessao(): Session</TD></TR>
+    </TABLE>
+  >];
+
+  Emprestimo -> Livro [label=" livro   1 ", arrowhead="vee"];
+  Emprestimo -> Usuario [label=" usuário   1 ", arrowhead="vee"];
+  Livro -> Emprestimo [label=" 0..* empréstimos ", style="dashed", arrowhead="vee"];
+  Usuario -> Emprestimo [label=" 0..* empréstimos ", style="dashed", arrowhead="vee"];
+  Service -> Database [label=" utiliza ", arrowhead="vee"];
+  Service -> Livro [label=" gerencia ", style="dashed", arrowhead="vee"];
+  Service -> Usuario [label=" gerencia ", style="dashed", arrowhead="vee"];
+  Service -> Emprestimo [label=" gerencia ", style="dashed", arrowhead="vee"];
+}

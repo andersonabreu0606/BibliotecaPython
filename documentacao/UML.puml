@@ -1,0 +1,55 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+class Livro {
+  +id: int
+  +titulo: str
+  +autor: str
+  +ano_publicacao: int
+  +copias_total: int
+  +copias_disponiveis: int
+  +disponivel: bool
+}
+
+class Usuario {
+  +id: int
+  +nome: str
+  +identificacao: str
+  +contato: str
+}
+
+class Emprestimo {
+  +id: int
+  +livro_id: int
+  +usuario_id: int
+  +data_emprestimo: datetime
+  +data_devolucao: datetime?
+  +status: str
+  +ativo: bool
+}
+
+class BibliotecaService {
+  +cadastrar_livro(...): Livro
+  +cadastrar_usuario(...): Usuario
+  +emprestar_livro(livro_id, usuario_id): Emprestimo
+  +devolver_livro(emprestimo_id): Emprestimo
+  +buscar_livros(...): list[Livro]
+  +resumo(): dict
+  +top_livros(): list[dict]
+  +emprestimos_por_mes(): list[dict]
+}
+
+class Database {
+  +criar_tabelas(): void
+  +testar_conexao(): bool
+  +sessao(): Session
+}
+
+Livro "1" <-- "0..*" Emprestimo : livro
+Usuario "1" <-- "0..*" Emprestimo : usuário
+BibliotecaService --> Database
+BibliotecaService --> Livro
+BibliotecaService --> Usuario
+BibliotecaService --> Emprestimo
+@enduml

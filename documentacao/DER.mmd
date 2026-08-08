@@ -1,0 +1,28 @@
+erDiagram
+    LIVROS ||--o{ EMPRESTIMOS : "é emprestado em"
+    USUARIOS ||--o{ EMPRESTIMOS : "realiza"
+
+    LIVROS {
+        int id PK
+        varchar titulo
+        varchar autor
+        int ano_publicacao
+        int copias_total
+        int copias_disponiveis
+    }
+
+    USUARIOS {
+        int id PK
+        varchar nome
+        varchar identificacao UK
+        varchar contato
+    }
+
+    EMPRESTIMOS {
+        int id PK
+        int livro_id FK
+        int usuario_id FK
+        datetime data_emprestimo
+        datetime data_devolucao
+        varchar status
+    }
