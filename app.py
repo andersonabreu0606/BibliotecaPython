@@ -3,13 +3,7 @@ from __future__ import annotations
 import os
 import pandas as pd
 import streamlit as st
-
-# Em produção no Streamlit Community Cloud, DATABASE_URL pode ser definido em Secrets.
-try:
-    if "DATABASE_URL" in st.secrets:
-        os.environ["DATABASE_URL"] = st.secrets["DATABASE_URL"]
-except Exception:
-    pass
+from sqlalchemy.exc import OperationalError
 
 from database import Database
 from services import BibliotecaService, BibliotecaErro
@@ -21,9 +15,32 @@ st.set_page_config(
     layout="wide",
 )
 
-db = Database()
-db.criar_tabelas()
-service = BibliotecaService(db)
+
+def obter_database_url():
+    """Obtém DATABASE_URL dos Secrets do Streamlit ou do ambiente."""
+    try:
+        if "DATABASE_URL" in st.secrets:
+            return str(st.secrets["DATABASE_URL"]).strip()
+    except Exception:
+        pass
+    return os.getenv("DATABASE_URL")
+
+
+try:
+    db = Database(obter_database_url())
+    db.testar_conexao()
+    db.criar_tabelas()
+    service = BibliotecaService(db)
+except OperationalError:
+    st.error(
+        "Não foi possível conectar ao PostgreSQL. "
+        "Revise a DATABASE_URL configurada nos Secrets do Streamlit."
+    )
+    st.info(
+        "No Neon, copie novamente a Connection string. Para a primeira "
+        "inicialização, prefira Direct connection e mantenha sslmode=require."
+    )
+    raise
 
 
 def livros_df(livros):
