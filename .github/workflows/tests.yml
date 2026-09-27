@@ -2,11 +2,7 @@ name: Testes Python
 
 on:
   push:
-    branches:
-      - main
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -23,7 +19,10 @@ jobs:
           mkdir -p log
           python scripts/gravar_log_deploy.py
       - name: Publicar artefato de log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: log-deploy
+          name: log-deploy-${{ github.run_id }}
           path: log/*.log
+          if-no-files-found: warn
+          retention-days: 30

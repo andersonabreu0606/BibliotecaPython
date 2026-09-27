@@ -54,24 +54,134 @@ except OperationalError:
     raise
 
 if not st.session_state.biblioteca_autenticado:
-    st.title("🔐 Acesso restrito")
-    st.caption("Informe as credenciais para entrar no painel da biblioteca.")
+    st.markdown(
+        """
+        <style>
+        .st-key-login_card {
+            max-width: 430px;
+            margin: 7vh auto 0;
+            padding: 1.4rem 1.5rem 1.15rem;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.76);
+            box-shadow: 0 20px 55px rgba(31, 41, 55, 0.12);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            animation: loginFadeUp 0.6s ease both;
+        }
+
+        .st-key-login_card .login-mark {
+            width: fit-content;
+            margin: 0 auto 0.35rem;
+            font-size: 2rem;
+            line-height: 1.2;
+            animation: bookFloat 2.8s ease-in-out infinite;
+        }
+
+        .st-key-login_card .login-heading {
+            margin: 0;
+            text-align: center;
+            font-size: 1.55rem;
+            font-weight: 750;
+            color: #172033;
+        }
+
+        .st-key-login_card .login-caption {
+            margin: 0.25rem 0 0.8rem;
+            text-align: center;
+            color: #667085;
+            font-size: 0.88rem;
+        }
+
+        .st-key-login_card [data-testid="stForm"] {
+            padding: 0;
+            border: 0;
+            background: transparent;
+        }
+
+        .st-key-login_card [data-testid="stTextInput"] {
+            margin-bottom: 0.35rem;
+        }
+
+        .st-key-login_card .stTextInput > div > div,
+        .st-key-login_card .stButton > button {
+            border-radius: 12px;
+        }
+
+        .st-key-login_card .stButton > button {
+            min-height: 2.65rem;
+            margin-top: 0.15rem;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            color: white;
+            font-weight: 700;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .st-key-login_card .stButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(99, 102, 241, 0.35);
+        }
+
+        @keyframes loginFadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bookFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(-3deg);
+            }
+            50% {
+                transform: translateY(-4px) rotate(3deg);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .st-key-login_card {
+                margin: 4vh 0.35rem 0;
+                padding: 1.2rem 1rem 1rem;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .st-key-login_card,
+            .st-key-login_card .login-mark {
+                animation: none;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     login_default, senha_default = obter_credenciais_acesso()
-    with st.form("login_biblioteca"):
-        usuario = st.text_input("Usuário", value=login_default, placeholder="admin")
-        senha = st.text_input("Senha", type="password", value=senha_default, placeholder="Digite a senha")
-        enviado = st.form_submit_button("Entrar", use_container_width=True)
+    with st.container(key="login_card"):
+        st.markdown('<div class="login-mark" aria-hidden="true">📖</div>', unsafe_allow_html=True)
+        st.markdown('<h1 class="login-heading">Acesso à biblioteca</h1>', unsafe_allow_html=True)
+        st.markdown('<div class="login-caption">Entre com sua conta para continuar</div>', unsafe_allow_html=True)
 
-    if enviado:
-        try:
-            usuario_logado = service.autenticar_usuario(usuario, senha)
-            st.session_state.biblioteca_autenticado = True
-            st.session_state.biblioteca_usuario = usuario_logado.username
-            st.session_state.biblioteca_perfil = usuario_logado.perfil
-            st.rerun()
-        except BibliotecaErro as exc:
-            st.error(str(exc))
+        with st.form("login_biblioteca"):
+            usuario = st.text_input("Usuário", value=login_default, placeholder="admin")
+            senha = st.text_input("Senha", type="password", value=senha_default, placeholder="Digite a senha")
+            enviado = st.form_submit_button("Entrar", use_container_width=True)
+
+        if enviado:
+            try:
+                usuario_logado = service.autenticar_usuario(usuario, senha)
+                st.session_state.biblioteca_autenticado = True
+                st.session_state.biblioteca_usuario = usuario_logado.username
+                st.session_state.biblioteca_perfil = usuario_logado.perfil
+                st.rerun()
+            except BibliotecaErro as exc:
+                st.error(str(exc))
+
     st.stop()
 
 # -----------------------------------------------------------------------------
