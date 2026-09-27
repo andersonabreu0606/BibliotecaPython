@@ -123,6 +123,70 @@ st.markdown(
             margin-left: 0.8rem;
         }
 
+        [data-testid="stSidebar"] .stButton > button {
+            background: rgba(255,255,255,0.25) !important;
+            border: 1px solid rgba(148, 163, 184, 0.18) !important;
+            box-shadow: none !important;
+            color: #1f2937 !important;
+            text-align: left !important;
+            padding: 0.7rem 0.8rem 0.7rem 0.95rem !important;
+            border-radius: 12px !important;
+            width: 100% !important;
+            font-size: 1.05rem !important;
+            font-weight: 500 !important;
+            line-height: 1.2 !important;
+            margin: 0.12rem 0 !important;
+            justify-content: flex-start !important;
+            transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+            transform-origin: left center !important;
+            position: relative !important;
+            overflow: hidden !important;
+            letter-spacing: 0.01em !important;
+        }
+
+        [data-testid="stSidebar"] .stButton > button::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: linear-gradient(180deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 999px;
+            opacity: 0;
+            transform: scaleY(0.3);
+            transition: all 0.25s ease;
+        }
+
+        [data-testid="stSidebar"] .stButton > button:hover {
+            background: linear-gradient(90deg, rgba(79,70,229,0.06), rgba(139,92,246,0.08)) !important;
+            border-color: rgba(79,70,229,0.2) !important;
+            transform: translateX(5px) scale(1.01);
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.08) !important;
+        }
+
+        [data-testid="stSidebar"] .stButton > button:hover::before {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        [data-testid="stSidebar"] .stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, rgba(79,70,229,0.16), rgba(139,92,246,0.12)) !important;
+            color: #111827 !important;
+            font-weight: 700 !important;
+            border-color: rgba(79,70,229,0.25) !important;
+            box-shadow: 0 10px 24px rgba(79, 70, 229, 0.14), inset 0 0 0 1px rgba(255,255,255,0.3) !important;
+            transform: translateX(5px);
+        }
+
+        [data-testid="stSidebar"] .stButton > button[kind="primary"]::before {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        [data-testid="stSidebar"] .stButton > button:focus-visible {
+            outline: 2px solid rgba(79,70,229,0.35) !important;
+            outline-offset: 2px !important;
+        }
+
         .brand-box {
             padding: 1rem 0.25rem 1.4rem 0.25rem;
         }
@@ -168,6 +232,49 @@ st.markdown(
             padding: 1.15rem 1.2rem;
             min-height: 125px;
             box-shadow: 0 5px 14px rgba(17,24,39,.05);
+            animation: riseIn 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+            transition: transform 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(79, 70, 229, 0.12);
+        }
+
+        @keyframes riseIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .chart-panel {
+            border-radius: 18px;
+            padding: 0.35rem 0.2rem 0.1rem 0.2rem;
+            background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(79,70,229,0.02));
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            animation: chartFade 0.8s ease both;
+            transition: box-shadow 0.22s ease, transform 0.22s ease;
+        }
+
+        .chart-panel:hover {
+            box-shadow: 0 10px 24px rgba(79, 70, 229, 0.08);
+            transform: translateY(-2px);
+        }
+
+        @keyframes chartFade {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .kpi-label {
@@ -342,36 +449,43 @@ with st.sidebar:
     if "biblioteca_menu" not in st.session_state:
         st.session_state.biblioteca_menu = "Dashboard"
 
-    def nav_button(label: str, *, disabled: bool = False):
-        selected = st.session_state.biblioteca_menu == label
+    def nav_button(value: str, *, label: str | None = None, indent: int = 0, disabled: bool = False):
+        selected = st.session_state.biblioteca_menu == value
+        display_label = "  " * indent + (label or value)
         clicked = st.sidebar.button(
-            label,
-            key=f"nav_{label}",
+            display_label,
+            key=f"nav_{value}",
             type="primary" if selected else "secondary",
             use_container_width=True,
             disabled=disabled,
         )
         if clicked:
-            st.session_state.biblioteca_menu = label
+            st.session_state.biblioteca_menu = value
         return clicked
 
-    nav_button("Dashboard")
+    st.sidebar.markdown('<div class="tree-nav">', unsafe_allow_html=True)
 
-    livros_expanded = st.session_state.biblioteca_menu in {"Cadastrar", "Consultar"}
-    with st.sidebar.expander("Livros", expanded=livros_expanded):
-        nav_button("Cadastrar")
-        nav_button("Consultar")
+    nav_button("Dashboard", label="📊 Dashboard")
 
-    gestao_expanded = st.session_state.biblioteca_menu in {"Emprestar Livro", "Devolução", "Relatórios"}
-    with st.sidebar.expander("Gestão", expanded=gestao_expanded):
-        nav_button("Emprestar Livro")
-        nav_button("Devolução")
-        nav_button("Relatórios")
+    st.sidebar.markdown('<div class="tree-group"><div class="tree-label">Livros</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="tree-submenu">', unsafe_allow_html=True)
+    nav_button("Cadastrar", label="▸ Cadastrar", indent=1)
+    nav_button("Consultar", label="▸ Consultar", indent=1)
+    st.sidebar.markdown('</div></div>', unsafe_allow_html=True)
 
+    st.sidebar.markdown('<div class="tree-group"><div class="tree-label">Gestão</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="tree-submenu">', unsafe_allow_html=True)
+    nav_button("Emprestar Livro", label="▸ Emprestar Livro", indent=1)
+    nav_button("Devolução", label="▸ Devolução", indent=1)
+    nav_button("Relatórios", label="▸ Relatórios", indent=1)
+    st.sidebar.markdown('</div></div>', unsafe_allow_html=True)
+
+    st.sidebar.markdown('<div class="tree-group"><div class="tree-label">Administração</div>', unsafe_allow_html=True)
+    st.sidebar.markdown('<div class="tree-submenu">', unsafe_allow_html=True)
     is_admin = st.session_state.biblioteca_perfil == "admin"
-    admin_expanded = st.session_state.biblioteca_menu == "Usuários do Sistema"
-    with st.sidebar.expander("Administração", expanded=admin_expanded):
-        nav_button("Usuários do Sistema", disabled=not is_admin)
+    nav_button("Usuários do Sistema", label="▸ Usuários do Sistema", indent=1, disabled=not is_admin)
+    st.sidebar.markdown('</div></div>', unsafe_allow_html=True)
+    st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
     menu = st.session_state.biblioteca_menu
     if st.session_state.biblioteca_perfil != "admin" and menu == "Usuários do Sistema":
@@ -475,7 +589,9 @@ elif menu == "Dashboard":
                 legend_title_text="",
                 showlegend=False,
             )
+            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
 
     with right:
         titulo_secao("Livros mais procurados", "Ranking dos títulos com maior número de empréstimos registrados.")
@@ -497,7 +613,9 @@ elif menu == "Dashboard":
                 yaxis_title="",
                 xaxis_title="Quantidade de empréstimos",
             )
+            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
 
     left2, right2 = st.columns([1.5, 1], gap="large")
 
@@ -521,7 +639,9 @@ elif menu == "Dashboard":
                 xaxis_title="",
                 yaxis_title="Empréstimos",
             )
+            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
 
     with right2:
         titulo_secao("Indicadores operacionais", "Alertas rápidos para apoiar o acompanhamento do acervo.")
@@ -797,7 +917,9 @@ elif menu == "Relatórios":
                 labels={"emprestimos": "Empréstimos", "autor": "Autor"},
             )
             fig.update_layout(height=430, yaxis_title="", xaxis_title="Quantidade de empréstimos")
+            st.markdown('<div class="chart-panel">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 st.markdown(

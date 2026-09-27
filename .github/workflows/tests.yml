@@ -13,4 +13,12 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - run: pytest -q
+      - name: Executar testes e gravar log de deploy
+        run: |
+          mkdir -p log
+          python scripts/gravar_log_deploy.py
+      - name: Publicar artefato de log
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-deploy
+          path: log/*.log
