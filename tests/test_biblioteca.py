@@ -1,7 +1,7 @@
 import pytest
 
 from database import Database
-from services import BibliotecaService, BibliotecaErro
+from services import BibliotecaService, BibliotecaErro, validar_credenciais
 
 
 @pytest.fixture()
@@ -10,6 +10,14 @@ def service(tmp_path):
     db = Database(f"sqlite:///{db_path}")
     db.criar_tabelas()
     return BibliotecaService(db)
+
+
+def test_validar_credenciais_padrao(monkeypatch):
+    monkeypatch.setenv("BIBLIOTECA_LOGIN", "admin")
+    monkeypatch.setenv("BIBLIOTECA_SENHA", "biblioteca123")
+
+    assert validar_credenciais("admin", "biblioteca123") is True
+    assert validar_credenciais("admin", "senha_errada") is False
 
 
 def test_cadastro_e_consulta(service):

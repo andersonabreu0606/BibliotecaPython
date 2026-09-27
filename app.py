@@ -9,7 +9,7 @@ import streamlit as st
 from sqlalchemy.exc import OperationalError
 
 from database import Database
-from services import BibliotecaService, BibliotecaErro
+from services import BibliotecaService, BibliotecaErro, obter_credenciais_acesso, validar_credenciais
 
 
 st.set_page_config(
@@ -19,6 +19,27 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
+if "biblioteca_autenticado" not in st.session_state:
+    st.session_state.biblioteca_autenticado = False
+
+if not st.session_state.biblioteca_autenticado:
+    st.title("🔐 Acesso restrito")
+    st.caption("Informe as credenciais para entrar no painel da biblioteca.")
+
+    login_default, senha_default = obter_credenciais_acesso()
+    with st.form("login_biblioteca"):
+        usuario = st.text_input("Usuário", value=login_default, placeholder="admin")
+        senha = st.text_input("Senha", type="password", value=senha_default, placeholder="Digite a senha")
+        enviado = st.form_submit_button("Entrar", use_container_width=True)
+
+    if enviado:
+        if validar_credenciais(usuario, senha):
+            st.session_state.biblioteca_autenticado = True
+            st.rerun()
+        else:
+            st.error("Usuário ou senha inválidos.")
+    st.stop()
 
 # -----------------------------------------------------------------------------
 # Identidade visual
@@ -280,6 +301,10 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
+
+    if st.button("🚪 Sair"):
+        st.session_state.biblioteca_autenticado = False
+        st.rerun()
 
     menu = st.radio(
         "Navegação",

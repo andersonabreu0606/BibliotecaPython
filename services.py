@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from sqlalchemy import select, func
@@ -13,6 +14,22 @@ from models import Livro, Usuario, Emprestimo
 class BibliotecaErro(Exception):
     """Erro de negócio conhecido e apresentável ao utilizador."""
     pass
+
+
+def obter_credenciais_acesso() -> tuple[str, str]:
+    """Retorna as credenciais configuradas para acesso ao sistema."""
+    login = (os.getenv("BIBLIOTECA_LOGIN") or "admin").strip()
+    senha = (os.getenv("BIBLIOTECA_SENHA") or "biblioteca123").strip()
+    return login, senha
+
+
+def validar_credenciais(login: str, senha: str) -> bool:
+    """Valida o acesso do usuário ao painel administrativo."""
+    if not login or not senha:
+        return False
+
+    login_esperado, senha_esperada = obter_credenciais_acesso()
+    return login.strip() == login_esperado and senha == senha_esperada
 
 
 class BibliotecaService:
