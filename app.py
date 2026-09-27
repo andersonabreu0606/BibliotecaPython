@@ -232,23 +232,42 @@ st.markdown(
             padding: 1.15rem 1.2rem;
             min-height: 125px;
             box-shadow: 0 5px 14px rgba(17,24,39,.05);
-            animation: riseIn 0.7s cubic-bezier(0.2, 0.9, 0.2, 1) both;
-            transition: transform 0.22s ease, box-shadow 0.22s ease;
+            animation: riseIn 0.55s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            will-change: transform;
         }
 
         .kpi-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 24px rgba(79, 70, 229, 0.12);
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 10px 22px rgba(79, 70, 229, 0.10);
+            border-color: rgba(79,70,229,0.2);
+        }
+
+        .kpi-card .kpi-value,
+        .kpi-card .kpi-label,
+        .kpi-card .kpi-note {
+            animation: fadeUp 0.6s ease both;
         }
 
         @keyframes riseIn {
             from {
                 opacity: 0;
-                transform: translateY(12px) scale(0.98);
+                transform: translateY(8px) scale(0.985);
             }
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
@@ -257,19 +276,19 @@ st.markdown(
             padding: 0.35rem 0.2rem 0.1rem 0.2rem;
             background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(79,70,229,0.02));
             border: 1px solid rgba(148, 163, 184, 0.15);
-            animation: chartFade 0.8s ease both;
-            transition: box-shadow 0.22s ease, transform 0.22s ease;
+            animation: chartFade 0.7s ease both;
+            transition: box-shadow 0.18s ease, transform 0.18s ease;
         }
 
         .chart-panel:hover {
-            box-shadow: 0 10px 24px rgba(79, 70, 229, 0.08);
-            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.08);
+            transform: translateY(-1px);
         }
 
         @keyframes chartFade {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(6px);
             }
             to {
                 opacity: 1;
