@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import String, Integer, DateTime, ForeignKey, CheckConstraint, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -57,6 +57,20 @@ class Usuario(Base):
 
     def __repr__(self) -> str:
         return f"<Usuario(id={self.id}, identificacao={self.identificacao!r})>"
+
+
+class SistemaUsuario(Base):
+    __tablename__ = "usuarios_sistema"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(80), nullable=False, unique=True, index=True)
+    nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    perfil: Mapped[str] = mapped_column(String(30), nullable=False, default="operador")
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    def __repr__(self) -> str:
+        return f"<SistemaUsuario(id={self.id}, username={self.username!r}, perfil={self.perfil!r})>"
 
 
 class Emprestimo(Base):

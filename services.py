@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import os
+import secrets
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from sqlalchemy import select, func
@@ -8,12 +10,44 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from database import Database
-from models import Livro, Usuario, Emprestimo
+from models import Livro, Usuario, Emprestimo, SistemaUsuario
 
 
 class BibliotecaErro(Exception):
     """Erro de negócio conhecido e apresentável ao utilizador."""
     pass
+
+
+def gerar_hash_senha(senha: str) -> str:
+    """Cria um hash seguro para armazenamento da senha."""
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        senha.encode("utf-8"),
+        salt.encode("utf-8"),
+        200_000,
+    ).hex()
+    return f"pbkdf2_sha256$200000${salt}${digest}"
+
+
+def verificar_hash_senha(senha: str, hash_armazenado: str) -> bool:
+    """Valida a senha informada contra um hash válido."""
+    if not senha or not hash_armazenado:
+        return False
+
+    try:
+        algoritmo, iteracoes, salt, digest = hash_armazenado.split("$")
+        if algoritmo != "pbkdf2_sha256":
+            return False
+        calculado = hashlib.pbkdf2_hmac(
+            "sha256",
+            senha.encode("utf-8"),
+            salt.encode("utf-8"),
+            int(iteracoes),
+        ).hex()
+        return calculado == digest
+    except (ValueError, TypeError):
+        return False
 
 
 def obter_credenciais_acesso() -> tuple[str, str]:
@@ -29,7 +63,20 @@ def validar_credenciais(login: str, senha: str) -> bool:
         return False
 
     login_esperado, senha_esperada = obter_credenciais_acesso()
-    return login.strip() == login_esperado and senha == senha_esperada
+    login_digitado = login.strip()
+
+    if login_digitado == login_esperado:
+        return senha == senha_esperada
+
+    try:
+        db = Database()
+        db.criar_tabelas()
+        service = BibliotecaService(db)
+        service.garantir_usuario_padrao()
+        service.autenticar_usuario(login_digitado, senha)
+        return True
+    except (BibliotecaErro, Exception):
+        return False
 
 
 class BibliotecaService:
@@ -108,7 +155,92 @@ class BibliotecaService:
             return list(s.scalars(stmt).all())
 
     # ----------------------------
-    # Usuários
+    # Usuários do sistema (login/admin)
+    # ----------------------------
+    def criar_usuario_sistema(
+        self,
+        username: str,
+        senha: str,
+        nome: str,
+        perfil: str = "operador",
+    ) -> SistemaUsuario:
+        username = username.strip().lower()
+        nome = nome.strip()
+        perfil = perfil.strip().lower()
+
+        if not username or not senha or not nome:
+            raise BibliotecaErro("Usuário, nome e senha são obrigatórios.")
+        if perfil not in {"admin", "operador"}:
+            raise BibliotecaErro("Perfil inválido. Use 'admin' ou 'operador'.")
+
+        usuario = SistemaUsuario(
+            username=username,
+            nome=nome,
+            password_hash=gerar_hash_senha(senha),
+            perfil=perfil,
+            ativo=True,
+        )
+
+        with self.db.sessao() as s:
+            existente = s.scalar(
+                select(SistemaUsuario).where(SistemaUsuario.username == username)
+            )
+            if existente:
+                raise BibliotecaErro("Já existe um usuário do sistema com esse nome.")
+
+            s.add(usuario)
+            s.commit()
+            s.refresh(usuario)
+            return usuario
+
+    def listar_usuarios_sistema(self) -> list[SistemaUsuario]:
+        with self.db.sessao() as s:
+            stmt = select(SistemaUsuario).order_by(SistemaUsuario.nome)
+            return list(s.scalars(stmt).all())
+
+    def autenticar_usuario(self, username: str, senha: str) -> SistemaUsuario:
+        username = username.strip().lower()
+        if not username or not senha:
+            raise BibliotecaErro("Usuário e senha são obrigatórios.")
+
+        with self.db.sessao() as s:
+            usuario = s.scalar(
+                select(SistemaUsuario).where(
+                    SistemaUsuario.username == username,
+                    SistemaUsuario.ativo.is_(True),
+                )
+            )
+            if usuario is None:
+                raise BibliotecaErro("Usuário ou senha inválidos.")
+            if not verificar_hash_senha(senha, usuario.password_hash):
+                raise BibliotecaErro("Usuário ou senha inválidos.")
+            return usuario
+
+    def garantir_usuario_padrao(self) -> SistemaUsuario:
+        login_padrao, senha_padrao = obter_credenciais_acesso()
+        try:
+            return self.autenticar_usuario(login_padrao, senha_padrao)
+        except BibliotecaErro:
+            with self.db.sessao() as s:
+                existente = s.scalar(
+                    select(SistemaUsuario).where(SistemaUsuario.username == login_padrao.lower())
+                )
+                if existente:
+                    return existente
+                usuario = SistemaUsuario(
+                    username=login_padrao.lower(),
+                    nome="Administrador",
+                    password_hash=gerar_hash_senha(senha_padrao),
+                    perfil="admin",
+                    ativo=True,
+                )
+                s.add(usuario)
+                s.commit()
+                s.refresh(usuario)
+                return usuario
+
+    # ----------------------------
+    # Usuários de biblioteca
     # ----------------------------
     def cadastrar_usuario(
         self,

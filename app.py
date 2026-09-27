@@ -12,6 +12,15 @@ from database import Database
 from services import BibliotecaService, BibliotecaErro, obter_credenciais_acesso, validar_credenciais
 
 
+def obter_database_url():
+    try:
+        if "DATABASE_URL" in st.secrets:
+            return str(st.secrets["DATABASE_URL"]).strip()
+    except Exception:
+        pass
+    return os.getenv("DATABASE_URL")
+
+
 st.set_page_config(
     page_title="Biblioteca Digital",
     page_icon="📚",
@@ -22,6 +31,27 @@ st.set_page_config(
 
 if "biblioteca_autenticado" not in st.session_state:
     st.session_state.biblioteca_autenticado = False
+if "biblioteca_usuario" not in st.session_state:
+    st.session_state.biblioteca_usuario = None
+if "biblioteca_perfil" not in st.session_state:
+    st.session_state.biblioteca_perfil = "operador"
+
+try:
+    db = Database(obter_database_url())
+    db.testar_conexao()
+    db.criar_tabelas()
+    service = BibliotecaService(db)
+    service.garantir_usuario_padrao()
+except OperationalError:
+    st.error(
+        "Não foi possível conectar ao PostgreSQL. "
+        "Revise a DATABASE_URL configurada nos Secrets do Streamlit."
+    )
+    st.info(
+        "No Neon, copie novamente a Connection string. Para a primeira "
+        "inicialização, prefira Direct connection e mantenha sslmode=require."
+    )
+    raise
 
 if not st.session_state.biblioteca_autenticado:
     st.title("🔐 Acesso restrito")
@@ -34,11 +64,14 @@ if not st.session_state.biblioteca_autenticado:
         enviado = st.form_submit_button("Entrar", use_container_width=True)
 
     if enviado:
-        if validar_credenciais(usuario, senha):
+        try:
+            usuario_logado = service.autenticar_usuario(usuario, senha)
             st.session_state.biblioteca_autenticado = True
+            st.session_state.biblioteca_usuario = usuario_logado.username
+            st.session_state.biblioteca_perfil = usuario_logado.perfil
             st.rerun()
-        else:
-            st.error("Usuário ou senha inválidos.")
+        except BibliotecaErro as exc:
+            st.error(str(exc))
     st.stop()
 
 # -----------------------------------------------------------------------------
@@ -66,6 +99,28 @@ st.markdown(
 
         [data-testid="stSidebar"] {
             border-right: 1px solid var(--border);
+        }
+
+        .tree-nav {
+            margin-top: 0.5rem;
+        }
+
+        .tree-group {
+            margin: 0.7rem 0 0.75rem 0;
+            padding-left: 0.2rem;
+        }
+
+        .tree-label {
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin: 0.7rem 0 0.45rem 0.1rem;
+        }
+
+        .tree-submenu {
+            margin-left: 0.8rem;
         }
 
         .brand-box {
@@ -186,33 +241,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-def obter_database_url():
-    try:
-        if "DATABASE_URL" in st.secrets:
-            return str(st.secrets["DATABASE_URL"]).strip()
-    except Exception:
-        pass
-    return os.getenv("DATABASE_URL")
-
-
-try:
-    db = Database(obter_database_url())
-    db.testar_conexao()
-    db.criar_tabelas()
-    service = BibliotecaService(db)
-except OperationalError:
-    st.error(
-        "Não foi possível conectar ao PostgreSQL. "
-        "Revise a DATABASE_URL configurada nos Secrets do Streamlit."
-    )
-    st.info(
-        "No Neon, copie novamente a Connection string. Para a primeira "
-        "inicialização, prefira Direct connection e mantenha sslmode=require."
-    )
-    raise
-
-
 def livros_df(livros):
     return pd.DataFrame([
         {
@@ -302,23 +330,53 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    st.caption(f"Usuário: {st.session_state.biblioteca_usuario or 'admin'}")
+    st.caption(f"Perfil: {st.session_state.biblioteca_perfil}")
+
     if st.button("🚪 Sair"):
         st.session_state.biblioteca_autenticado = False
+        st.session_state.biblioteca_usuario = None
+        st.session_state.biblioteca_perfil = "operador"
         st.rerun()
 
-    menu = st.radio(
-        "Navegação",
-        [
-            "🏠 Dashboard",
-            "📘 Cadastrar livro",
-            "👤 Cadastrar usuário",
-            "🔄 Empréstimo",
-            "↩️ Devolução",
-            "🔎 Consultar livros",
-            "📊 Relatórios",
-        ],
-        label_visibility="collapsed",
-    )
+    if "biblioteca_menu" not in st.session_state:
+        st.session_state.biblioteca_menu = "Dashboard"
+
+    def nav_button(label: str, *, disabled: bool = False):
+        selected = st.session_state.biblioteca_menu == label
+        clicked = st.sidebar.button(
+            label,
+            key=f"nav_{label}",
+            type="primary" if selected else "secondary",
+            use_container_width=True,
+            disabled=disabled,
+        )
+        if clicked:
+            st.session_state.biblioteca_menu = label
+        return clicked
+
+    nav_button("Dashboard")
+
+    livros_expanded = st.session_state.biblioteca_menu in {"Cadastrar", "Consultar"}
+    with st.sidebar.expander("Livros", expanded=livros_expanded):
+        nav_button("Cadastrar")
+        nav_button("Consultar")
+
+    gestao_expanded = st.session_state.biblioteca_menu in {"Emprestar Livro", "Devolução", "Relatórios"}
+    with st.sidebar.expander("Gestão", expanded=gestao_expanded):
+        nav_button("Emprestar Livro")
+        nav_button("Devolução")
+        nav_button("Relatórios")
+
+    is_admin = st.session_state.biblioteca_perfil == "admin"
+    admin_expanded = st.session_state.biblioteca_menu == "Usuários do Sistema"
+    with st.sidebar.expander("Administração", expanded=admin_expanded):
+        nav_button("Usuários do Sistema", disabled=not is_admin)
+
+    menu = st.session_state.biblioteca_menu
+    if st.session_state.biblioteca_perfil != "admin" and menu == "Usuários do Sistema":
+        menu = "Dashboard"
+        st.session_state.biblioteca_menu = menu
 
     st.divider()
     resumo_sidebar = service.resumo()
@@ -333,7 +391,49 @@ with st.sidebar:
 # -----------------------------------------------------------------------------
 # Dashboard
 # -----------------------------------------------------------------------------
-if menu == "🏠 Dashboard":
+if menu == "Usuários do Sistema":
+    if st.session_state.biblioteca_perfil != "admin":
+        st.warning("Acesso restrito somente para administradores.")
+        st.stop()
+
+    render_hero(
+        "Usuários do sistema",
+        "Gerencie os acessos administrativos com login e senha protegidos por hash seguro.",
+        "👥",
+    )
+
+    usuarios_sistema = service.listar_usuarios_sistema()
+    if usuarios_sistema:
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "Usuário": u.username,
+                    "Nome": u.nome,
+                    "Perfil": u.perfil.title(),
+                    "Ativo": "Sim" if u.ativo else "Não",
+                }
+                for u in usuarios_sistema
+            ]),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    with st.form("form_usuario_sistema", clear_on_submit=True):
+        username = st.text_input("Usuário", placeholder="bibliotecario")
+        nome = st.text_input("Nome completo", placeholder="Maria da Silva")
+        perfil = st.selectbox("Perfil", ["operador", "admin"])
+        senha = st.text_input("Senha", type="password", placeholder="Digite uma senha forte")
+        enviado = st.form_submit_button("➕ Criar usuário administrativo", use_container_width=True)
+
+    if enviado:
+        try:
+            usuario = service.criar_usuario_sistema(username, senha, nome, perfil)
+            st.success(f'Usuário administrativo “{usuario.username}” criado com sucesso.')
+            st.rerun()
+        except BibliotecaErro as exc:
+            st.error(str(exc))
+
+elif menu == "Dashboard":
     render_hero(
         "Painel da Biblioteca",
         "Uma visão consolidada do acervo, circulação de livros, utilizadores e atividade recente.",
@@ -451,7 +551,7 @@ if menu == "🏠 Dashboard":
         )
 
 
-elif menu == "📘 Cadastrar livro":
+elif menu == "Cadastrar":
     render_hero(
         "Cadastro de livro",
         "Inclua um novo título no acervo e defina a quantidade inicial de cópias disponíveis.",
@@ -514,7 +614,7 @@ elif menu == "👤 Cadastrar usuário":
         st.info("📧 O contato pode ser um e-mail ou telefone utilizado pela biblioteca.")
 
 
-elif menu == "🔄 Empréstimo":
+elif menu == "Emprestar Livro":
     render_hero(
         "Novo empréstimo",
         "Selecione um título disponível e o usuário responsável pelo empréstimo.",
@@ -561,7 +661,7 @@ elif menu == "🔄 Empréstimo":
             st.info("O sistema reduz automaticamente a quantidade disponível do livro após a confirmação.")
 
 
-elif menu == "↩️ Devolução":
+elif menu == "Devolução":
     render_hero(
         "Devolução de livro",
         "Finalize um empréstimo ativo e devolva automaticamente a cópia ao estoque disponível.",
@@ -594,7 +694,7 @@ elif menu == "↩️ Devolução":
         st.dataframe(emprestimos_df(ativos), use_container_width=True, hide_index=True)
 
 
-elif menu == "🔎 Consultar livros":
+elif menu == "Consultar":
     render_hero(
         "Consulta ao acervo",
         "Pesquise títulos por nome, autor ou ano de publicação e veja a disponibilidade em tempo real.",
@@ -633,7 +733,7 @@ elif menu == "🔎 Consultar livros":
         )
 
 
-elif menu == "📊 Relatórios":
+elif menu == "Relatórios":
     render_hero(
         "Relatórios gerenciais",
         "Acompanhe o catálogo, usuários e histórico de circulação, com opção de exportação em CSV.",

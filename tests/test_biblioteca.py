@@ -20,6 +20,17 @@ def test_validar_credenciais_padrao(monkeypatch):
     assert validar_credenciais("admin", "senha_errada") is False
 
 
+def test_usuario_sistema_com_hash(service):
+    usuario = service.criar_usuario_sistema("bibliotecario", "senhaSegura@123", "Bibliotecário", "operador")
+
+    assert usuario.id is not None
+    assert usuario.password_hash != "senhaSegura@123"
+    assert service.autenticar_usuario("bibliotecario", "senhaSegura@123").username == "bibliotecario"
+
+    with pytest.raises(BibliotecaErro):
+        service.autenticar_usuario("bibliotecario", "senha-errada")
+
+
 def test_cadastro_e_consulta(service):
     livro = service.cadastrar_livro("Livro Teste", "Autor X", 2024, 2)
     assert livro.id is not None
